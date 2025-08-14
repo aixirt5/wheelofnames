@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wheel of Names</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Wheel of Names</h1>
+    <button id="toggleSettings" class="secondary" aria-expanded="false" aria-controls="controlsPanel">Show Settings</button>
+  </header>
+
+  <main class="app-main full-width">
+      <section id="controlsPanel" class="controls hidden" aria-label="Wheel Controls">
+        <div class="control-row">
+          <label for="namesInput">Names (one per line) <span id="namesCount" class="badge">0</span></label>
+          <textarea id="namesInput" rows="8" spellcheck="false">Alice
+Bob
+Charlie
+Diana
+Eve
+Frank
+Grace
+Heidi</textarea>
+          <div class="help-row"><span class="muted">Tip: paste a list, one per line.</span></div>
+        </div>
+
+      <div class="control-row">
+        <button id="applyNames" class="secondary">Apply Names</button>
+        <button id="shuffleNames" class="secondary">Shuffle</button>
+        <button id="randomizeColors" class="secondary">Randomize Colors</button>
+        </div>
+
+        <!-- Selection Mode toggle moved below spin duration -->
+
+        <div class="control-row collapsible-hidden" id="winnerModeRow">
+          <fieldset class="winner-mode">
+            <legend>Selection Mode</legend>
+            <div class="segmented">
+              <label><input type="radio" name="selectMode" id="modeRandom" value="random" checked /> Random</label>
+              <label><input type="radio" name="selectMode" id="modeFixed" value="fixed" /> Fixed</label>
+              <label><input type="radio" name="selectMode" id="modeLms" value="lms" /> Last Man Standing</label>
+            </div>
+            <label class="fixed-select">
+            <span>Pick:</span>
+            <select id="fixedChoice" disabled></select>
+          </label>
+          <label class="lms-select">
+            <span>Protected:</span>
+            <select id="lmsProtected" disabled></select>
+          </label>
+            <div class="control-row">
+              <span class="spacer"></span>
+              <button id="saveSelection" class="primary" type="button">Save Winner</button>
+            </div>
+        </fieldset>
+      </div>
+
+      <div class="control-row">
+        <label for="spinDuration">Spin Duration (s):</label>
+        <input type="number" id="spinDuration" min="3" max="12" step="0.5" value="6" />
+        <label for="spinTurns">Turns:</label>
+        <input type="number" id="spinTurns" min="3" max="12" step="1" value="7" />
+      </div>
+
+      <div class="control-row">
+        <span class="spacer"></span>
+        <button id="selectionModeToggle" class="secondary" aria-controls="winnerModeRow" aria-expanded="false">Show Selection Mode</button>
+      </div>
+
+      <div class="control-row">
+        <button id="spinBtn" class="primary">Spin</button>
+        <span class="spacer"></span>
+      </div>
+    </section>
+
+    <section class="wheel-section" aria-label="Wheel">
+      <div class="wheel-stage">
+        <canvas id="wheelCanvas" width="800" height="800" aria-label="Names wheel"></canvas>
+        <button id="spinBtnOverlay" class="wheel-center-btn" aria-label="Spin the wheel">Spin</button>
+        <div class="pointer" aria-hidden="true"></div>
+        <canvas id="confettiCanvas" class="confetti-canvas" width="1" height="1" aria-hidden="true"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <div id="resultsPanel" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="winnerAnnouncement">
+    <div class="results-card">
+      <button id="closeResults" class="results-close" aria-label="Close winner dialog">✕</button>
+      <h2 id="winnerAnnouncement" aria-live="polite">Winner: Name</h2>
+      <div class="results-actions">
+        <button id="spinAgain" class="primary">Spin Again</button>
+        <button id="removeWinner" class="secondary">Remove winner</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
