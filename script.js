@@ -329,6 +329,8 @@
     if (namesCount) namesCount.textContent = String(entries.length);
     // After repopulating selects, restore selection if saved
     restoreSelection();
+    // Persist again so the selection (by name) maps to the new indices after shuffle/apply
+    try { persistSelection(); } catch {}
   }
 
   function shuffleArray(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
@@ -542,14 +544,21 @@
     if (!confetti) createConfetti();
     confetti.start();
 
-    // Last Man Standing: require user to remove the picked player until stop threshold
+    // Last Man Standing: continue until only one name remains (the survivor)
     if (modeLms.checked) {
-      const stopAt = parseInt(lmsStopAt.value, 10) || 1;
-      if (entries.length > stopAt) {
+      if (entries.length > 1) {
+        // Still have multiple names - continue the game
         spinAgainBtn.disabled = true;
         try { removeWinnerBtn.focus({ preventScroll: true }); } catch {}
+      } else if (entries.length === 1) {
+        // Only one name remains - they are the Last Man Standing!
+        const survivor = entries[0];
+        winnerAnnouncement.textContent = `🏆 LAST MAN STANDING: ${survivor}!`;
+        spinAgainBtn.disabled = true;
+        removeWinnerBtn.disabled = true;
+        try { removeWinnerBtn.focus({ preventScroll: true }); } catch {}
       } else {
-        // Already at stop threshold — treat as final
+        // Something went wrong
         spinAgainBtn.disabled = true;
         removeWinnerBtn.disabled = true;
       }
@@ -558,7 +567,16 @@
 
   // Actions
   applyNamesBtn.addEventListener('click', () => { applyNames(); });
-  namesInput.addEventListener('input', () => { applyNames(); });
+  
+  // Debounced input handler to avoid excessive calls while typing
+  let inputTimeout;
+  namesInput.addEventListener('input', () => {
+    clearTimeout(inputTimeout);
+    inputTimeout = setTimeout(() => {
+      applyNames();
+    }, 500); // Wait 500ms after user stops typing
+  });
+  
   shuffleNamesBtn.addEventListener('click', () => {
     const list = parseNames(namesInput.value);
     shuffleArray(list);
@@ -589,6 +607,8 @@
     lmsProtectedSel.disabled = !modeLms.checked;
     // Drop any auto-protected state when switching modes
     if (!modeLms.checked) delete window.__lmsProtectedIndex;
+    // Persist immediately when switching modes
+    try { persistSelection(); } catch {}
   }
   modeRandom.addEventListener('change', syncModeUI);
   modeFixed.addEventListener('change', syncModeUI);
@@ -607,14 +627,67 @@
       const raw = localStorage.getItem('selectionMode');
       if (!raw) return;
       const { mode, fixedName, lmsName } = JSON.parse(raw);
-      if (mode === 'fixed') modeFixed.checked = true; else if (mode === 'lms') modeLms.checked = true; else modeRandom.checked = true;
+      
+      // Restore the mode first
+      if (mode === 'fixed') modeFixed.checked = true; 
+      else if (mode === 'lms') modeLms.checked = true; 
+      else modeRandom.checked = true;
+      
       syncModeUI();
-      // Set selected options by matching text content
-      if (fixedName) {
-        Array.from(fixedChoiceSel.options).forEach((opt) => { if (opt.textContent === fixedName) fixedChoiceSel.value = opt.value; });
+      
+      // Try to restore the selected names by matching text content
+      let fixedRestored = false;
+      let lmsRestored = false;
+      
+      if (fixedName && fixedChoiceSel.options.length > 0) {
+        // Try exact match first
+        for (let opt of fixedChoiceSel.options) {
+          if (opt.textContent === fixedName) {
+            fixedChoiceSel.value = opt.value;
+            fixedRestored = true;
+            break;
+          }
+        }
+        
+        // If exact match fails, try partial match (for cases where names might have been modified)
+        if (!fixedRestored) {
+          for (let opt of fixedChoiceSel.options) {
+            if (opt.textContent.toLowerCase().includes(fixedName.toLowerCase()) || 
+                fixedName.toLowerCase().includes(opt.textContent.toLowerCase())) {
+              fixedChoiceSel.value = opt.value;
+              fixedRestored = true;
+              break;
+            }
+          }
+        }
       }
-      if (lmsName) {
-        Array.from(lmsProtectedSel.options).forEach((opt) => { if (opt.textContent === lmsName) lmsProtectedSel.value = opt.value; });
+      
+      if (lmsName && lmsProtectedSel.options.length > 0) {
+        // Try exact match first
+        for (let opt of lmsProtectedSel.options) {
+          if (opt.textContent === lmsName) {
+            lmsProtectedSel.value = opt.value;
+            lmsRestored = true;
+            break;
+          }
+        }
+        
+        // If exact match fails, try partial match
+        if (!lmsRestored) {
+          for (let opt of lmsProtectedSel.options) {
+            if (opt.textContent.toLowerCase().includes(lmsName.toLowerCase()) || 
+                lmsName.toLowerCase().includes(opt.textContent.toLowerCase())) {
+              lmsProtectedSel.value = opt.value;
+              lmsRestored = true;
+              break;
+            }
+          }
+        }
+      }
+      
+      // If we successfully restored selections, persist them to update any indices
+      if (fixedRestored || lmsRestored) {
+        try { persistSelection(); } catch {}
       }
     } catch {}
   }
@@ -624,6 +697,10 @@
     saveSelectionBtn.disabled = true;
     setTimeout(() => { saveSelectionBtn.disabled = false; }, 500);
   });
+
+  // Persist selection whenever dropdowns change so shuffle keeps the intended names
+  fixedChoiceSel.addEventListener('change', () => { try { persistSelection(); } catch {} });
+  lmsProtectedSel.addEventListener('change', () => { try { persistSelection(); } catch {} });
 
   spinBtn.addEventListener('click', () => {
     if (spinning) return;
@@ -638,15 +715,19 @@
     if (modeFixed.checked) {
       targetIndex = parseInt(fixedChoiceSel.value, 10) || 0;
     } else if (modeLms.checked) {
-      // Last Man Standing: avoid the selected protected name
-      const avoidIdx = parseInt(lmsProtectedSel.value, 10);
-      const validAvoid = Number.isFinite(avoidIdx) ? avoidIdx : -1;
+      // Last Man Standing: Select any name EXCEPT the protected one
+      // The protected name will be eliminated, and the survivor becomes Last Man Standing
+      const protectedIdx = parseInt(lmsProtectedSel.value, 10);
+      const validProtected = Number.isFinite(protectedIdx) ? protectedIdx : -1;
+      
       if (entries.length <= 1) {
+        // Only one name left - this is the Last Man Standing!
         targetIndex = 0;
       } else {
+        // Select any name EXCEPT the protected one for elimination
         do {
-          targetIndex = Math.floor(Math.random()*entries.length);
-        } while (targetIndex === validAvoid);
+          targetIndex = Math.floor(Math.random() * entries.length);
+        } while (targetIndex === validProtected);
       }
     } else {
       targetIndex = Math.floor(Math.random()*entries.length);
@@ -677,11 +758,13 @@
     const currentWinner = winnerAnnouncement.textContent.replace(/^Winner:\s*/, '');
     const list = parseNames(namesInput.value);
     const idx = list.findIndex(n => n === currentWinner);
+    
     if (idx !== -1) {
       list.splice(idx, 1);
       namesInput.value = list.join('\n');
       applyNames();
     }
+    
     // Always close and prepare for next spin
     resultsPanel.classList.add('hidden');
     if (confetti) confetti.stop();
