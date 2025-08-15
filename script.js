@@ -459,15 +459,84 @@
     const pointerAngle = -Math.PI/2; // must match sectorAtPointer
     const currentAtPointer = sectorAtPointer();
 
-    const duration = Math.max(3, Math.min(12, parseFloat(spinDurationInput.value) || 6));
-    const spins = Math.max(3, Math.min(12, parseInt(spinTurnsInput.value, 10) || 7));
+    // Random spin duration between 10-30 seconds for maximum unpredictability!
+    const baseDuration = 12; // Base duration of 12 seconds
+    const randomDuration = Math.random() * 20 + 10; // Random between 10-30 seconds
+    const duration = randomDuration;
+    
+    const spins = Math.max(5, Math.min(15, parseInt(spinTurnsInput.value, 10) || 10));
+    
+    // Add dynamic duration and spins for more excitement
+    let finalDuration = duration;
+    let finalSpins = spins;
+    
+    if (isDramaticSpin) {
+      // Add randomness to dramatic effect: 1.1x to 1.3x
+      const dramaticMultiplier = 1.1 + (Math.random() * 0.2);
+      finalDuration = duration * dramaticMultiplier;
+      finalSpins = spins + 3; // Extra spins for suspense
+    } else if (isLuckySpin) {
+      // Add randomness to lucky effect: 0.8x to 1.0x
+      const luckyMultiplier = 0.8 + (Math.random() * 0.2);
+      finalDuration = duration * luckyMultiplier;
+      finalSpins = spins - 2; // Fewer spins but more dramatic
+    } else if (isChaosSpin) {
+      // Add randomness to chaos effect: 1.3x to 1.5x
+      const chaosMultiplier = 1.3 + (Math.random() * 0.2);
+      finalDuration = duration * chaosMultiplier;
+      finalSpins = spins + 4; // Maximum spins for chaos
+    } else if (isSlowMotion) {
+      // Add randomness to slow motion effect: 1.7x to 1.9x
+      const slowMotionMultiplier = 1.7 + (Math.random() * 0.2);
+      finalDuration = duration * slowMotionMultiplier;
+      finalSpins = spins + 5; // Maximum spins for ultra-slow effect
+    }
+
+    // Add excitement: 5% chance to land in a completely random position!
+    const isLuckySpin = Math.random() < 0.05; // 5% chance
+    
+    // Add dramatic effects: 10% chance for extra dramatic spin
+    const isDramaticSpin = Math.random() < 0.10; // 10% chance
+    
+    // Add suspense: 15% chance for a "near miss" effect
+    const isNearMiss = Math.random() < 0.15; // 15% chance
+    
+    // Add chaos: 20% chance for completely unpredictable positioning
+    const isChaosSpin = Math.random() < 0.20; // 20% chance
+    
+    // Add slow motion effect: 25% chance for ultra-slow dramatic stopping
+    const isSlowMotion = Math.random() < 0.25; // 25% chance
 
     // Compute target angle so that the selected slice lands under the pointer.
-    // Add a small random jitter so it doesn't always stop at the exact center of the slice.
+    // Make it truly random across the ENTIRE slice - no more predictable center landings!
     const targetAngleForIndex = (idx) => {
       const center = pointerAngle - (idx + 0.5) * arc;
-      const jitter = (Math.random() - 0.5) * (arc * 0.84); // stay within +/- 42% of slice width
-      return center + jitter;
+      
+      if (isLuckySpin) {
+        // Lucky spin! Land ANYWHERE in the slice with maximum randomness!
+        const jitter = (Math.random() - 0.5) * (arc * 2.2); // Can go beyond slice edges for excitement!
+        return center + jitter;
+      } else if (isDramaticSpin) {
+        // Dramatic spin! Land at random positions across the entire slice!
+        const randomPosition = Math.random(); // 0 to 1 across the slice
+        const jitter = (randomPosition - 0.5) * (arc * 2.0); // Full slice coverage
+        return center + jitter;
+      } else if (isNearMiss) {
+        // Near miss! Land at random positions, often near edges!
+        const randomPosition = Math.random(); // 0 to 1 across the slice
+        const jitter = (randomPosition - 0.5) * (arc * 2.1); // Full slice + some edge overflow
+        return center + jitter;
+      } else if (isChaosSpin) {
+        // Chaos spin! Completely unpredictable positioning - could land anywhere!
+        const chaosFactor = (Math.random() - 0.5) * 2; // -1 to 1
+        const jitter = chaosFactor * (arc * 2.5); // Massive randomness, can overflow significantly!
+        return center + jitter;
+      } else {
+        // Normal spin with COMPLETE randomness across the entire slice!
+        const randomPosition = Math.random(); // 0 to 1 across the slice
+        const jitter = (randomPosition - 0.5) * (arc * 2.0); // Full slice width coverage
+        return center + jitter;
+      }
     };
 
     // Add full spins forward to ensure nice rotation
@@ -475,16 +544,45 @@
     let finalAngle = targetAngleForIndex(targetIndex);
     // ensure finalAngle is forward by adding multiples of 2PI
     while (finalAngle <= currentAngle) finalAngle += Math.PI*2;
-    finalAngle += spins * (Math.PI*2);
+    finalAngle += finalSpins * (Math.PI*2);
+
+    // Store spin type for display
+    if (isLuckySpin) {
+      window.lastSpinType = 'lucky';
+    } else if (isDramaticSpin) {
+      window.lastSpinType = 'dramatic';
+    } else if (isNearMiss) {
+      window.lastSpinType = 'nearMiss';
+    } else if (isChaosSpin) {
+      window.lastSpinType = 'chaos';
+    } else if (isSlowMotion) {
+      window.lastSpinType = 'slowMotion';
+    } else {
+      window.lastSpinType = 'normal';
+    }
+    
+    // Store duration info for display
+    window.lastSpinDuration = Math.round(finalDuration * 10) / 10; // Round to 1 decimal place
 
     const startTime = performance.now();
     const startAngle = angle;
     spinning = true; lastTickSector = -1;
 
-    function easeOutCubic(t) { return 1 - Math.pow(1-t, 3); }
+    // Create a dramatic, slow stopping effect for maximum suspense!
+    function easeOutDramatic(t) { 
+      // Start fast, then slow down dramatically for suspense
+      if (t < 0.7) {
+        // First 70%: fast spinning
+        return t * 1.4; // Speed up the initial spin
+      } else {
+        // Last 30%: dramatic slow-down
+        const slowT = (t - 0.7) / 0.3; // Normalize to 0-1
+        return 0.98 + (0.02 * Math.pow(slowT, 4)); // Very slow final approach
+      }
+    }
 
     function step(ts) {
-      const t = Math.min(1, (ts - startTime) / (duration * 1000));
+      const t = Math.min(1, (ts - startTime) / (finalDuration * 1000));
       const eased = easeOutCubic(t);
       angle = startAngle + (finalAngle - startAngle) * eased;
       drawWheel();
@@ -493,7 +591,29 @@
       const currentSector = sectorAtPointer();
       if (currentSector !== lastTickSector) {
         lastTickSector = currentSector;
-        if (!muted) sounds.clickTick();
+        if (!muted) {
+          // Add variety to tick sounds for different spin types
+          if (window.lastSpinType === 'lucky') {
+            // Lucky spins get extra special tick sounds
+            sounds.clickTick();
+            setTimeout(() => sounds.clickTick(), 50); // Double tick for luck!
+          } else if (window.lastSpinType === 'dramatic') {
+            // Dramatic spins get slower, more suspenseful ticks
+            sounds.clickTick();
+          } else if (window.lastSpinType === 'chaos') {
+            // Chaos spins get rapid, chaotic tick sounds
+            sounds.clickTick();
+            setTimeout(() => sounds.clickTick(), 30); // Rapid double tick for chaos!
+            setTimeout(() => sounds.clickTick(), 60); // Triple tick for maximum chaos!
+          } else if (window.lastSpinType === 'slowMotion') {
+            // Slow motion spins get spaced out, dramatic tick sounds
+            sounds.clickTick();
+            setTimeout(() => sounds.clickTick(), 200); // Slow, dramatic tick
+            setTimeout(() => sounds.clickTick(), 400); // Very slow final tick
+          } else {
+            sounds.clickTick();
+          }
+        }
       }
 
       if (t < 1) {
@@ -509,7 +629,24 @@
 
   function onFinish(index) {
     const name = entries[index] || '—';
-    winnerAnnouncement.textContent = `Winner: ${name}`;
+    
+    // Add exciting spin type indicators
+    let spinType = '';
+    if (window.lastSpinType === 'lucky') {
+      spinType = ' 🍀 LUCKY SPIN!';
+    } else if (window.lastSpinType === 'dramatic') {
+      spinType = ' 🎭 DRAMATIC SPIN!';
+    } else if (window.lastSpinType === 'nearMiss') {
+      spinType = ' 😱 NEAR MISS!';
+    } else if (window.lastSpinType === 'chaos') {
+      spinType = ' 🌪️ CHAOS SPIN!';
+    } else if (window.lastSpinType === 'slowMotion') {
+      spinType = ' 🐌 SLOW MOTION SPIN!';
+    }
+    
+    // Add duration info for extra excitement
+    const durationInfo = window.lastSpinDuration ? ` (${window.lastSpinDuration}s)` : '';
+    winnerAnnouncement.textContent = `Winner: ${name}${spinType}${durationInfo}`;
     resultsPanel.classList.remove('hidden');
     if (resetBtn) resetBtn.disabled = false;
     // Hide spin controls once the game starts and on finish
