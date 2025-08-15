@@ -38,6 +38,17 @@
   const spinDurationInput = qs('#spinDuration');
   const spinTurnsInput = qs('#spinTurns');
 
+  // Timer elements
+  const timerBtn = qs('#timerBtn');
+  const timerDisplay = qs('#timerDisplay');
+  const timerInput = qs('#timerInput');
+  const timerMinutes = qs('#timerMinutes');
+  const timerSeconds = qs('#timerSeconds');
+  const startTimer = qs('#startTimer');
+  const cancelTimer = qs('#cancelTimer');
+  const timerNotification = qs('#timerNotification');
+  const closeNotification = qs('#closeNotification');
+
   // Sounds engine
   function createSoundEngine() {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -163,6 +174,95 @@
   }
   let muted = false;
   const sounds = createSoundEngine();
+
+  // Timer functionality
+  let timerInterval = null;
+  let timerTimeLeft = 0;
+  let timerRunning = false;
+
+  function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  function updateTimerDisplay() {
+    if (timerDisplay) {
+      timerDisplay.textContent = formatTime(timerTimeLeft);
+    }
+  }
+
+  function startTimerCountdown() {
+    if (timerInterval) clearInterval(timerInterval);
+    
+    timerInterval = setInterval(() => {
+      timerTimeLeft--;
+      updateTimerDisplay();
+      
+      if (timerTimeLeft <= 0) {
+        stopTimer();
+        // Play a sound when timer ends
+        if (!muted) sounds.clickTick();
+        // Show styled notification
+        showTimerNotification();
+      }
+    }, 1000);
+    
+    timerRunning = true;
+    timerDisplay.classList.remove('hidden');
+    timerInput.classList.add('hidden');
+  }
+
+  function stopTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+    timerRunning = false;
+    timerDisplay.classList.add('hidden');
+    timerInput.classList.add('hidden');
+    timerBtn.classList.remove('hidden');
+  }
+
+  function resetTimer() {
+    timerTimeLeft = 0;
+    updateTimerDisplay();
+    stopTimer();
+  }
+
+  function showTimerNotification() {
+    if (timerNotification) {
+      timerNotification.classList.remove('hidden');
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        hideTimerNotification();
+      }, 5000);
+    }
+  }
+
+  function hideTimerNotification() {
+    if (timerNotification) {
+      timerNotification.classList.add('hidden');
+    }
+  }
+
+  function showValidationNotification(message) {
+    if (timerNotification) {
+      const notificationText = timerNotification.querySelector('.notification-text');
+      if (notificationText) {
+        notificationText.textContent = message;
+      }
+      timerNotification.classList.remove('hidden');
+      // Auto-hide after 3 seconds for validation messages
+      setTimeout(() => {
+        hideTimerNotification();
+        // Reset the text back to "Timer Finished!"
+        if (notificationText) {
+          notificationText.textContent = 'Timer Finished!';
+        }
+      }, 3000);
+    }
+  }
 
   // Confetti
   let confetti;
@@ -585,6 +685,72 @@
 
   // After finish, if LMS has no protected index yet, set it to the first picked name
   // Remove earlier auto-protect behavior; LMS relies solely on the selected dropdown value now
+
+  // Timer event listeners
+  timerBtn.addEventListener('click', () => {
+    timerInput.classList.remove('hidden');
+    timerBtn.classList.add('hidden');
+    timerMinutes.focus();
+  });
+
+  startTimer.addEventListener('click', () => {
+    const minutes = parseInt(timerMinutes.value) || 0;
+    const seconds = parseInt(timerSeconds.value) || 0;
+    const totalSeconds = minutes * 60 + seconds;
+    
+    if (totalSeconds <= 0) {
+      showValidationNotification('Please enter a valid time!');
+      return;
+    }
+    
+    if (totalSeconds > 3600) { // Max 1 hour
+      showValidationNotification('Please enter a time less than 1 hour!');
+      return;
+    }
+    
+    timerTimeLeft = totalSeconds;
+    startTimerCountdown();
+    
+    // Clear inputs
+    timerMinutes.value = '';
+    timerSeconds.value = '';
+  });
+
+  cancelTimer.addEventListener('click', () => {
+    timerInput.classList.add('hidden');
+    timerBtn.classList.remove('hidden');
+    timerMinutes.value = '';
+    timerSeconds.value = '';
+  });
+
+  // Input validation for timer
+  timerMinutes.addEventListener('input', (e) => {
+    let value = parseInt(e.target.value);
+    if (value > 59) e.target.value = 59;
+    if (value < 0) e.target.value = 0;
+  });
+
+  timerSeconds.addEventListener('input', (e) => {
+    let value = parseInt(e.target.value);
+    if (value > 59) e.target.value = 59;
+    if (value < 0) e.target.value = 0;
+  });
+
+  // Close notification event listener
+  closeNotification.addEventListener('click', hideTimerNotification);
+
+  // Allow Enter key to start timer
+  timerMinutes.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      startTimer.click();
+    }
+  });
+
+  timerSeconds.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      startTimer.click();
+    }
+  });
 
   // Keyboard shortcuts for better UX (ignore while typing in inputs/textarea)
   window.addEventListener('keydown', (e) => {
