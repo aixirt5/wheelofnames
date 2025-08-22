@@ -15,7 +15,7 @@
   <main class="app-main full-width">
       <section id="controlsPanel" class="controls hidden" aria-label="Wheel Controls">
         <div class="control-row">
-          <label for="namesInput">Names (one per line) <span id="namesCount" class="badge">0</span></label>
+          <label for="namesInput">Names (one per line or comma-separated) <span id="namesCount" class="badge">0</span></label>
           <textarea id="namesInput" rows="8" spellcheck="false">Alice
 Bob
 Charlie
@@ -24,7 +24,7 @@ Eve
 Frank
 Grace
 Heidi</textarea>
-          <div class="help-row"><span class="muted">Tip: paste a list, one per line.</span></div>
+          <div class="help-row"><span class="muted">Tip: paste a list separated by new lines, commas, semicolons, tabs, or pipes.</span></div>
         </div>
 
       <div class="control-row">
@@ -58,10 +58,7 @@ Heidi</textarea>
         </fieldset>
       </div>
 
-      <div class="control-row">
-        <label for="spinTurns">Turns:</label>
-        <input type="number" id="spinTurns" min="3" max="12" step="1" value="7" />
-      </div>
+      
 
       <div class="control-row">
         <span class="spacer"></span>

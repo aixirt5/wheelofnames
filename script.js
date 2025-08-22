@@ -35,7 +35,7 @@
   const modeLms = qs('#modeLms');
   const lmsProtectedSel = qs('#lmsProtected');
   const saveSelectionBtn = qs('#saveSelection');
-  const spinTurnsInput = qs('#spinTurns');
+  // Legacy turns control removed
 
   // Timer elements
   const timerBtn = qs('#timerBtn');
@@ -306,7 +306,11 @@
   let lastTickSector = -1;
 
   function parseNames(text) {
-    return text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    // Accept names separated by newlines, commas, semicolons, tabs, or pipes
+    return text
+      .split(/[\r\n,;\t|]+/)
+      .map(s => s.trim())
+      .filter(Boolean);
   }
 
   function randomColor(i) {
@@ -479,13 +483,13 @@
       spins = Math.floor(Math.random() * 4) + 2; // 2-5 spins
     }
 
-    // Simple but effective randomness for exciting spins!
+    // Ensure final landing stays within the intended slice
     const targetAngleForIndex = (idx) => {
       const center = pointerAngle - (idx + 0.5) * arc;
-      
-      // Maximum randomness - can land anywhere in the slice, even at the very edges!
-      // This ensures the wheel never lands in the boring center position
-      const jitter = (Math.random() - 0.5) * (arc * 2.0); // Full slice width randomness!
+      const halfArc = arc * 0.5;
+      const margin = Math.min(halfArc * 0.1, 0.05);
+      const maxJitter = halfArc - margin;
+      const jitter = (Math.random() * (maxJitter * 2)) - maxJitter; // within slice
       return center + jitter;
     };
 
@@ -521,7 +525,24 @@
       } else {
         spinning = false;
         // Determine the actual winner based on where the wheel actually stopped
-        const actualWinnerIndex = sectorAtPointer();
+        let actualWinnerIndex = sectorAtPointer();
+
+        // Safety guard: In LMS mode, never allow the protected index to win
+        if (modeLms.checked) {
+          const n = entries.length;
+          const protectedIdx = parseInt(lmsProtectedSel.value, 10);
+          if (Number.isFinite(protectedIdx) && n > 1 && actualWinnerIndex === protectedIdx) {
+            // Nudge the pointer to a neighboring valid slice deterministically
+            const arc = (Math.PI * 2) / n;
+            const pointerAngle = -Math.PI / 2;
+            const targetCenter = pointerAngle - ((protectedIdx + 1) % n + 0.5) * arc;
+            // Keep visual continuity: minimal adjustment, not a full re-spin
+            angle = targetCenter;
+            drawWheel();
+            actualWinnerIndex = ((protectedIdx + 1) % n);
+          }
+        }
+
         onFinish(actualWinnerIndex);
       }
     }
@@ -544,10 +565,10 @@
     if (!confetti) createConfetti();
     confetti.start();
 
-    // Last Man Standing: continue until only one name remains (the survivor)
+    // Last Man Standing: continue until only one name remains (manual remove)
     if (modeLms.checked) {
       if (entries.length > 1) {
-        // Still have multiple names - continue the game
+        // Require removing the winner before next spin
         spinAgainBtn.disabled = true;
         try { removeWinnerBtn.focus({ preventScroll: true }); } catch {}
       } else if (entries.length === 1) {
@@ -558,7 +579,7 @@
         removeWinnerBtn.disabled = true;
         try { removeWinnerBtn.focus({ preventScroll: true }); } catch {}
       } else {
-        // Something went wrong
+        // Safety: no entries
         spinAgainBtn.disabled = true;
         removeWinnerBtn.disabled = true;
       }
